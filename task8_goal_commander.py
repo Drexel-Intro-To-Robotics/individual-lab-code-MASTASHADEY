@@ -111,14 +111,22 @@ class OpenManipulatorDirectCommander:
     def send_trajectory(self, list_of_joint_arrays, duration=2.0):
         """
         Builds and sends the FollowJointTrajectoryGoal to ros_control.
+        Includes zeroed velocities/accelerations to prevent hardware driver crashes.
         """
         goal = FollowJointTrajectoryGoal()
         goal.trajectory.joint_names = self.joint_names
+        
+        # 1. Explicitly timestamp the start to prevent synchronization errors
+        goal.trajectory.header.stamp = rospy.Time.now()
         
         time_from_start = 0.0
         for joints in list_of_joint_arrays:
             point = JointTrajectoryPoint()
             point.positions = joints
+            
+            # 2. Provide empty arrays to prevent C++ vector out-of-bounds segfaults
+            point.velocities = [0.0, 0.0, 0.0, 0.0]
+            point.accelerations = [0.0, 0.0, 0.0, 0.0]
             
             time_from_start += duration
             point.time_from_start = rospy.Duration(time_from_start)
