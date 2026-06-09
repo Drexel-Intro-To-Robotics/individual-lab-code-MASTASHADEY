@@ -68,11 +68,11 @@ class OpenManipulatorKinematics:
 if __name__ == "__main__":
     solver = OpenManipulatorKinematics()
 
-    # 1. Define three reachable target end-effector poses (X, Y, Z in meters) [cite: 27, 50]
+    # 1. Define three reachable target end-effector poses (X, Y, Z in meters)
     target_poses = [
-        np.array([0.25, 0.0, 0.15]),   # Target 1
-        np.array([0.18, 0.12, 0.20]),  # Target 2
-        np.array([0.20, -0.10, 0.08])  # Target 3
+        np.array([-0.22, 0.92, 0.49]),   # Target 1
+        np.array([-0.30, -0.91, -0.32]),  # Target 2
+        np.array([0.59, 0.76, 0.32])  # Target 3
     ]
 
     print("==================================================")
@@ -80,19 +80,19 @@ if __name__ == "__main__":
     print("==================================================\n")
 
     for i, target in enumerate(target_poses, 1):
-        print(f"--- POSE {i} ---") [cite: 50]
-        print(f"Target Position (X, Y, Z): {target} meters") [cite: 27]
+        print(f"--- POSE {i} ---") 
+        print(f"Target Position (X, Y, Z): {target} meters")
         
         # Solve Inverse Kinematics [cite: 50]
         joint_angles = solver.inverse_kinematics(target)
-        print(f"Solved Joint Angles (q1, q2, q3, q4):\n  {np.round(joint_angles, 4)} rad") [cite: 28]
+        print(f"Solved Joint Angles (q1, q2, q3, q4):\n  {np.round(joint_angles, 4)} rad")
         print(f"  {np.round(np.degrees(joint_angles), 2)} deg")
         
         # Verify using Forward Kinematics [cite: 53]
         verified_pos = solver.forward_kinematics(joint_angles)
-        print(f"FK Verification Position:   {np.round(verified_pos, 4)}") [cite: 53]
+        print(f"FK Verification Position:   {np.round(verified_pos, 4)}")
         
         # Compute tracking error
         error = np.linalg.norm(target - verified_pos)
-        print(f"Absolute Position Error:    {error:.6f} meters") [cite: 27]
+        print(f"Absolute Position Error:    {error:.6f} meters") 
         print("\n" + "-"*50 + "\n")
