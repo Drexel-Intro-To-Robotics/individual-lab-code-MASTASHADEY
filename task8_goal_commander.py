@@ -1,27 +1,46 @@
 #!/usr/bin/env python3
-import sys
 import rospy
-import moveit_commander
+import actionlib
 import geometry_msgs.msg
 from std_msgs.msg import Float64MultiArray
 from geometry_msgs.msg import Pose, Point
+from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
+from trajectory_msgs.msg import JointTrajectoryPoint
 
-class OpenManipulatorGoalCommander:
+class OpenManipulatorDirectCommander:
     def __init__(self):
-        # Initialize moveit_commander and ROS node
-        moveit_commander.roscpp_initialize(sys.argv)
-        rospy.init_node('task8_goal_commander', anonymous=True)
+        rospy.init_node('task8_direct_commander', anonymous=True)
 
-        # Instantiate MoveGroupCommander for the arm
-        # Note: "arm" is the default group name for OpenManipulator-X. Change if your setup differs.
-        self.move_group = moveit_commander.MoveGroupCommander("arm")
+        # The OpenManipulator-X default joint names
+        self.joint_names = ['joint1', 'joint2', 'joint3', 'joint4']
 
-        # Set up subscribers for the three types of goals
+        # Connect directly to the ros_control action server instead of MoveIt!
+        self.client = actionlib.SimpleActionClient(
+            '/arm_controller/follow_joint_trajectory', 
+            FollowJointTrajectoryAction
+        )
+        
+        rospy.loginfo("Waiting for /arm_controller/follow_joint_trajectory action server...")
+        self.client.wait_for_server()
+        rospy.loginfo("Connected to trajectory action server!")
+
+        # Subscribers for the three types of goals
         rospy.Subscriber('/goal_joint_space', Float64MultiArray, self.joint_space_callback)
         rospy.Subscriber('/goal_task_space', Point, self.task_space_callback)
         rospy.Subscriber('/goal_waypoints', geometry_msgs.msg.PoseArray, self.waypoints_callback)
 
-        rospy.loginfo("Task 8 Goal Commander Node Operational. Awaiting goals...")
+        rospy.loginfo("Task 8 Direct Goal Commander Operational. Awaiting goals...")
+
+    def compute_inverse_kinematics(self, x, y, z):
+        """
+        TODO: Insert your Task 2 IK math here!
+        Takes an X, Y, Z position and returns a list of 4 joint angles [j1, j2, j3, j4].
+        """
+        # --- YOUR MATH GOES HERE ---
+        # Example dummy values:
+        j1, j2, j3, j4 = 0.0, 0.0, 0.0, 0.0 
+        
+        return [j1, j2, j3, j4]
 
     def joint_space_callback(self, msg):
         """Accepts an array of 4 joint angles in radians and executes."""
@@ -30,53 +49,62 @@ class OpenManipulatorGoalCommander:
             return
         
         rospy.loginfo(f"Executing Joint-Space Goal: {msg.data}")
-        self.move_group.go(msg.data, wait=True)
-        self.move_group.stop()
+        self.send_trajectory([msg.data], duration=3.0)
 
     def task_space_callback(self, msg):
-        """Accepts an X, Y, Z coordinate point and plans/executes task-space move."""
+        """Accepts an X, Y, Z coordinate, runs IK, and executes."""
         rospy.loginfo(f"Executing Task-Space Goal: X={msg.x}, Y={msg.y}, Z={msg.z}")
         
-        # Get current orientation to preserve it, updating only position
-        current_pose = self.move_group.get_current_pose().pose
-        target_pose = Pose()
-        target_pose.position.x = msg.x
-        target_pose.position.y = msg.y
-        target_pose.position.z = msg.z
-        target_pose.orientation = current_pose.orientation # Maintain stable orientation
-
-        self.move_group.set_pose_target(target_pose)
-        self.move_group.go(wait=True)
-        self.move_group.stop()
-        self.move_group.clear_pose_targets()
+        # 1. Convert XYZ to Joint Angles using your Task 2 math
+        target_joints = self.compute_inverse_kinematics(msg.x, msg.y, msg.z)
+        
+        # 2. Send the joint angles to the controller
+        self.send_trajectory([target_joints], duration=3.0)
 
     def waypoints_callback(self, msg):
-        """Accepts an array of Poses and computes a continuous Cartesian path."""
-        rospy.loginfo(f"Received a list of {len(msg.poses)} waypoints. Computing Cartesian path...")
+        """Accepts an array of Poses, computes IK for each, and executes a continuous path."""
+        rospy.loginfo(f"Received {len(msg.poses)} waypoints. Computing path...")
         
-        waypoints = []
+        trajectory_points = []
         for pose in msg.poses:
-            waypoints.append(pose)
+            # Run IK for each waypoint in the list
+            joints = self.compute_inverse_kinematics(pose.position.x, pose.position.y, pose.position.z)
+            trajectory_points.append(joints)
 
-        # Compute Cartesian trajectory line
-        # fraction represents the percentage of the path successfully planned (0.0 to 1.0)
-        (plan, fraction) = self.move_group.compute_cartesian_path(
-                             waypoints,   # waypoints to follow
-                             0.01,        # eef_step (1cm resolution)
-                             0.0)         # jump_threshold
+        # Send the entire list of waypoints to the controller
+        # We allocate 2.0 seconds between each waypoint
+        self.send_trajectory(trajectory_points, duration=2.0)
 
-        if fraction > 0.90: # Ensure at least 90% of path is viable
-            rospy.loginfo(f"Path planning successful ({fraction*100:.1f}%). Executing...")
-            self.move_group.execute(plan, wait=True)
-        else:
-            rospy.logerr(f"Cartesian path rejected. Only {fraction*100:.1f}% of path is clear of obstacles.")
+    def send_trajectory(self, list_of_joint_arrays, duration=2.0):
+        """
+        Helper function to build and send the FollowJointTrajectoryGoal.
+        """
+        goal = FollowJointTrajectoryGoal()
+        goal.trajectory.joint_names = self.joint_names
+        
+        # Build the trajectory points
+        time_from_start = 0.0
+        for joints in list_of_joint_arrays:
+            point = JointTrajectoryPoint()
+            point.positions = joints
+            
+            # Increment time for each waypoint to ensure smooth motion
+            time_from_start += duration
+            point.time_from_start = rospy.Duration(time_from_start)
+            
+            goal.trajectory.points.append(point)
+
+        # Send the trajectory to ros_control
+        self.client.send_goal(goal)
+        self.client.wait_for_result()
+        rospy.loginfo("Trajectory execution complete.")
 
     def run(self):
         rospy.spin()
 
 if __name__ == '__main__':
     try:
-        commander = OpenManipulatorGoalCommander()
+        commander = OpenManipulatorDirectCommander()
         commander.run()
     except rospy.ROSInterruptException:
         pass
