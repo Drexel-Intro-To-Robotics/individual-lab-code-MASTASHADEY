@@ -1,46 +1,80 @@
-#!/usr/bin/env python3
-import rospy
-from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-
-def send_raw_command():
-    rospy.init_node('raw_arm_publisher', anonymous=True)
-    
-    # 1. Connect directly to the raw controller topic
-    pub = rospy.Publisher('/arm_controller/command', JointTrajectory, queue_size=10)
-    
-    # Wait 1 second to ensure the node registers on the ROS network
-    rospy.sleep(1.0)
-    
-    # 2. Build the main trajectory envelope
-    traj = JointTrajectory()
-    traj.joint_names = ['joint1', 'joint2', 'joint3', 'joint4']
-    
-    # Setting time to 0 forces the controller to execute immediately 
-    # and prevents clock synchronization crashes between nodes
-    traj.header.stamp = rospy.Time(0) 
-    
-    # 3. Build the specific waypoint you want to reach
-    point = JointTrajectoryPoint()
-    point.positions = [0.0, -0.2, 0.2, 0.0]
-    
-    # Leave these explicitly empty to prevent C++ array bounds errors
-    point.velocities = []
-    point.accelerations = []
-    point.time_from_start = rospy.Duration(3.0)
-    
-    # Attach the waypoint to the trajectory envelope
-    traj.points.append(point)
-    
-    # 4. Fire the message
-    rospy.loginfo("Publishing raw JointTrajectory to the arm...")
-    pub.publish(traj)
-    
-    # Wait 1 second before the script ends to guarantee network delivery
-    rospy.sleep(1.0)
-    rospy.loginfo("Command successfully sent!")
-
-if __name__ == '__main__':
-    try:
-        send_raw_command()
-    except rospy.ROSInterruptException:
-        pass
+/arm_controller/follow_joint_trajectory/cancel
+/arm_controller/follow_joint_trajectory/feedback
+/arm_controller/follow_joint_trajectory/goal
+/arm_controller/follow_joint_trajectory/result
+/arm_controller/follow_joint_trajectory/status
+/attached_collision_object
+/battery_state
+/camera/camera_info
+/camera/image
+/cmd_vel
+/cmd_vel_rc100
+/collision_object
+/diagnostics
+/execute_trajectory/cancel
+/execute_trajectory/feedback
+/execute_trajectory/goal
+/execute_trajectory/result
+/execute_trajectory/status
+/firmware_version
+/gripper_controller/follow_joint_trajectory/cancel
+/gripper_controller/follow_joint_trajectory/feedback
+/gripper_controller/follow_joint_trajectory/goal
+/gripper_controller/follow_joint_trajectory/result
+/gripper_controller/follow_joint_trajectory/status
+/gripper_move_time
+/gripper_position
+/imu
+/joint_move_time
+/joint_states
+/joint_trajectory_point
+/magnetic_field
+/motor_power
+/move_group/cancel
+/move_group/display_contacts
+/move_group/display_planned_path
+/move_group/feedback
+/move_group/goal
+/move_group/monitored_planning_scene
+/move_group/ompl/parameter_descriptions
+/move_group/ompl/parameter_updates
+/move_group/plan_execution/parameter_descriptions
+/move_group/plan_execution/parameter_updates
+/move_group/planning_scene_monitor/parameter_descriptions
+/move_group/planning_scene_monitor/parameter_updates
+/move_group/result
+/move_group/sense_for_plan/parameter_descriptions
+/move_group/sense_for_plan/parameter_updates
+/move_group/status
+/move_group/trajectory_execution/parameter_descriptions
+/move_group/trajectory_execution/parameter_updates
+/odom
+/pickup/cancel
+/pickup/feedback
+/pickup/goal
+/pickup/result
+/pickup/status
+/place/cancel
+/place/feedback
+/place/goal
+/place/result
+/place/status
+/planning_scene
+/planning_scene_world
+/recognized_object_array
+/reset
+/rosout
+/rosout_agg
+/rpms
+/rviz_COE_74YKM34_6386_498019084807621225/motionplanning_planning_scene_monitor/parameter_descriptions
+/rviz_COE_74YKM34_6386_498019084807621225/motionplanning_planning_scene_monitor/parameter_updates
+/rviz_moveit_motion_planning_display/robot_interaction_interactive_marker_topic/feedback
+/rviz_moveit_motion_planning_display/robot_interaction_interactive_marker_topic/update
+/rviz_moveit_motion_planning_display/robot_interaction_interactive_marker_topic/update_full
+/scan
+/sensor_state
+/sound
+/tf
+/tf_static
+/trajectory_execution_event
+/version_info
